@@ -13,14 +13,22 @@ const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     rules: {
+      // Next.js & React Rules
       "react/no-unescaped-entities": "off",
       "@next/next/no-page-custom-font": "off",
-      // Disable all linting errors
-      "react-hooks/exhaustive-deps": "off",
-      "@typescript-eslint/no-unused-vars": "off",
-      "@typescript-eslint/no-empty-interface": "off",
-      "@typescript-eslint/no-empty-object-type": "off",
-      // Add any other rules that were causing errors
+
+      // Dev Warnings Only
+      "react-hooks/exhaustive-deps": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/no-empty-interface": "warn",
+      "@typescript-eslint/no-empty-object-type": "warn",
+
+      // You can disable errors completely if needed:
+      // "react-hooks/exhaustive-deps": "off",
+      // "@typescript-eslint/no-unused-vars": "off",
     },
   },
 ];
