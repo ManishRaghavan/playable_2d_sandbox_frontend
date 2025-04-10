@@ -7,7 +7,7 @@ import FTUEPopup from "./components/FTUEPopup";
 
 // WebSocket server URL - can be changed in one place
 const WS_SERVER_URL =
-  process.env.NODE_ENV !== "development"
+  process.env.NODE_ENV === "development"
     ? process.env.NEXT_PUBLIC_WS_SERVER_URL_DEV || "ws://127.0.0.1:8000" // Development URL
     : process.env.NEXT_PUBLIC_WS_SERVER_URL_PROD; // Production URL
 
