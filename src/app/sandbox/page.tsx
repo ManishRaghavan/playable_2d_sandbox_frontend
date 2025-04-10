@@ -114,8 +114,8 @@ export default function SandboxPage() {
   const [receivedNotRelatedFalse, setReceivedNotRelatedFalse] = useState(false);
   const [showFTUE, setShowFTUE] = useState(false);
 
-  const ws = useRef<WebSocket | null>(null);
-  const editWs = useRef<WebSocket | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const editWsRef = useRef<WebSocket | null>(null);
 
   // Initialize client-side operations
   useEffect(() => {
@@ -164,14 +164,14 @@ export default function SandboxPage() {
   useEffect(() => {
     // Connect when the component mounts
     try {
-      ws.current = new WebSocket(`${WS_SERVER_URL}/generate/ws/chat`);
+      wsRef.current = new WebSocket(`${WS_SERVER_URL}/generate/ws/chat`);
 
-      ws.current.onopen = () => {
+      wsRef.current.onopen = () => {
         console.log(`✅ WebSocket connected to ${WS_SERVER_URL}`);
         setWsError(null); // Clear any existing errors when connected successfully
       };
 
-      ws.current.onmessage = (event) => {
+      wsRef.current.onmessage = (event) => {
         const data = JSON.parse(event.data);
         console.log(
           "Received from WS - Full message:",
@@ -287,12 +287,12 @@ export default function SandboxPage() {
         }
       };
 
-      ws.current.onclose = () => {
+      wsRef.current.onclose = () => {
         console.log("WebSocket disconnected");
         setWsError("Servers are busy. Please reload or try again later.");
       };
 
-      ws.current.onerror = (err) => {
+      wsRef.current.onerror = (err) => {
         console.error("WebSocket error:", err);
         setWsError("Servers are busy. Please reload or try again later.");
       };
@@ -302,7 +302,7 @@ export default function SandboxPage() {
     }
 
     return () => {
-      ws.current?.close();
+      wsRef.current?.close();
     };
   }, []);
 
@@ -312,23 +312,25 @@ export default function SandboxPage() {
       chatContainerRef.current.scrollTop =
         chatContainerRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, receivedNotRelatedFalse]);
 
   // Function to initialize edit WebSocket
   const initializeEditWebSocket = () => {
-    if (editWs.current?.readyState === WebSocket.OPEN) {
+    if (editWsRef.current?.readyState === WebSocket.OPEN) {
       return; // Already connected
     }
 
     try {
-      editWs.current = new WebSocket(`${WS_SERVER_URL}/generate/ws/chat/edit`);
+      editWsRef.current = new WebSocket(
+        `${WS_SERVER_URL}/generate/ws/chat/edit`
+      );
 
-      editWs.current.onopen = () => {
+      editWsRef.current.onopen = () => {
         console.log(`✅ Edit WebSocket connected to ${WS_SERVER_URL}`);
         setWsError(null);
       };
 
-      editWs.current.onmessage = (event) => {
+      editWsRef.current.onmessage = (event) => {
         const data = JSON.parse(event.data);
         console.log("Received from Edit WS:", data);
 
@@ -375,12 +377,12 @@ export default function SandboxPage() {
         }
       };
 
-      editWs.current.onclose = () => {
+      editWsRef.current.onclose = () => {
         console.log("Edit WebSocket disconnected");
         setWsError("Edit connection lost. Please reload or try again later.");
       };
 
-      editWs.current.onerror = (err) => {
+      editWsRef.current.onerror = (err) => {
         console.error("Edit WebSocket error:", err);
         setWsError("Edit connection error. Please reload or try again later.");
       };
@@ -421,7 +423,7 @@ export default function SandboxPage() {
 
     if (isFirstMessage) {
       // First message goes to chat WebSocket
-      if (!ws.current) return;
+      if (!wsRef.current) return;
       const message = {
         user_id: userSession?.userId || "anonymous",
         role: "user",
@@ -432,7 +434,7 @@ export default function SandboxPage() {
         },
       };
       console.log("Sending first message:", message);
-      ws.current.send(JSON.stringify(message));
+      wsRef.current.send(JSON.stringify(message));
 
       // Set receivedNotRelatedFalse to true after first message since we know it's a game request
       setReceivedNotRelatedFalse(true);
@@ -444,7 +446,7 @@ export default function SandboxPage() {
       sendEditRequest(inputMessage);
     } else {
       // Continue sending to chat WebSocket
-      if (!ws.current) return;
+      if (!wsRef.current) return;
       const message = {
         user_id: userSession?.userId || "anonymous",
         role: "user",
@@ -455,7 +457,7 @@ export default function SandboxPage() {
         },
       };
       console.log("Sending subsequent message:", message);
-      ws.current.send(JSON.stringify(message));
+      wsRef.current.send(JSON.stringify(message));
     }
 
     // Update message count in session
@@ -473,7 +475,7 @@ export default function SandboxPage() {
 
   // Modified sendEditRequest function
   const sendEditRequest = (prompt: string) => {
-    if (!editWs.current || editWs.current.readyState !== WebSocket.OPEN) {
+    if (!editWsRef.current || editWsRef.current.readyState !== WebSocket.OPEN) {
       initializeEditWebSocket();
       setTimeout(() => sendEditRequest(prompt), 1000);
       return;
@@ -486,7 +488,7 @@ export default function SandboxPage() {
     };
 
     setIsEditing(true);
-    editWs.current.send(JSON.stringify(message));
+    editWsRef.current.send(JSON.stringify(message));
   };
 
   // Render message limit indicator
@@ -729,7 +731,7 @@ export default function SandboxPage() {
     setIsFixingErrors(true);
 
     // Send to edit WebSocket
-    if (!editWs.current || editWs.current.readyState !== WebSocket.OPEN) {
+    if (!editWsRef.current || editWsRef.current.readyState !== WebSocket.OPEN) {
       initializeEditWebSocket();
       setTimeout(() => {
         const message = {
@@ -739,7 +741,7 @@ export default function SandboxPage() {
           is_not_related_to_game: false,
         };
         console.log("Sending fix errors request:", message);
-        editWs.current?.send(JSON.stringify(message));
+        editWsRef.current?.send(JSON.stringify(message));
         setIsFixingErrors(false);
       }, 1000);
       return;
@@ -753,7 +755,7 @@ export default function SandboxPage() {
     };
 
     console.log("Sending fix errors request:", message);
-    editWs.current.send(JSON.stringify(message));
+    editWsRef.current.send(JSON.stringify(message));
 
     // Add a message to the chat
     setMessages((prev) => [
@@ -802,6 +804,61 @@ export default function SandboxPage() {
   const handleFTUEClose = () => {
     setShowFTUE(false);
     localStorage.setItem("hasSeenFTUE", "true");
+  };
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        // Reconnect WebSocket when tab becomes visible
+        if (wsRef.current?.readyState === WebSocket.CLOSED) {
+          initEditWebSocket();
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  const initEditWebSocket = () => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.close();
+    }
+
+    const newWs = new WebSocket(
+      process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/ws/edit"
+    );
+    wsRef.current = newWs;
+
+    newWs.onopen = () => {
+      console.log("WebSocket connected");
+    };
+
+    newWs.onclose = () => {
+      console.log("WebSocket disconnected");
+      // Attempt to reconnect after a delay
+      setTimeout(initEditWebSocket, 3000);
+    };
+
+    newWs.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    newWs.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "edit") {
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", message: data.content },
+          ]);
+        }
+      } catch (error) {
+        console.error("Error parsing WebSocket message:", error);
+      }
+    };
   };
 
   return (

@@ -34,7 +34,9 @@ const FTUEPopup: React.FC<FTUEPopupProps> = ({ onClose }) => {
               <li>Type your game requirements in the chat</li>
               <li>Use the code editor to make manual changes</li>
               <li>Preview your game in real-time</li>
-              <li>Fix any console errors using the "Fix Errors" button</li>
+              <li>
+                Fix any console errors using the &quot;Fix Errors&quot; button
+              </li>
             </ol>
           </div>
 
@@ -64,7 +66,7 @@ const FTUEPopup: React.FC<FTUEPopupProps> = ({ onClose }) => {
           onClick={onClose}
           className="mt-6 w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded transition-colors"
         >
-          Got it! Let's start creating games
+          Got it! Let&apos;s start creating games
         </button>
       </div>
     </div>
