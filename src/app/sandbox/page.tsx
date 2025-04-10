@@ -11,6 +11,12 @@ const WS_SERVER_URL =
     ? process.env.NEXT_PUBLIC_WS_SERVER_URL_DEV || "ws://127.0.0.1:8000" // Development URL
     : process.env.NEXT_PUBLIC_WS_SERVER_URL_PROD; // Production URL
 
+// Backend health check URL
+const BACKEND_HEALTH_URL =
+  process.env.NODE_ENV === "development"
+    ? "http://127.0.0.1:8000/generate/chat/health"
+    : "https://playabale-2d-game-sandbox-backend.onrender.com/";
+
 // Generate a unique user ID
 const generateUserId = () => {
   return "user_" + Math.random().toString(36).substr(2, 9);
@@ -48,12 +54,14 @@ const Toast = ({
     <div className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center space-x-4">
       <p>{message}</p>
       <div className="flex items-center space-x-2 ml-2">
-        <button
-          onClick={handleReload}
-          className="bg-white text-red-500 px-3 py-1 rounded hover:bg-red-50 text-sm font-medium"
-        >
-          Reload
-        </button>
+        {message.includes("Servers are busy") && (
+          <button
+            onClick={handleReload}
+            className="bg-white text-red-500 px-3 py-1 rounded hover:bg-red-50 text-sm font-medium"
+          >
+            Reload
+          </button>
+        )}
         <button
           onClick={onClose}
           className="text-white hover:text-gray-200 ml-2"
@@ -85,7 +93,11 @@ export default function SandboxPage() {
     useState<Record<string, string>>(initialTemplate);
   const [previewKey, setPreviewKey] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [wsError, setWsError] = useState<string | null>(null);
+  const [wsError, setWsError] = useState<string | null>(
+    "Connecting to server..."
+  );
+  const [wsConnected, setWsConnected] = useState(false);
+  const [showToast, setShowToast] = useState(true);
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
@@ -161,14 +173,46 @@ export default function SandboxPage() {
     initializeUserSession();
   }, []);
 
+  // Check backend health before connecting
   useEffect(() => {
-    // Connect when the component mounts
+    const checkBackendHealth = async () => {
+      try {
+        const response = await fetch(BACKEND_HEALTH_URL);
+        const data = await response.json();
+
+        if (data.status === 200) {
+          console.log("Backend is healthy:", data.message);
+          // Initialize WebSocket after successful health check
+          initializeWebSocket();
+        } else {
+          console.error("Backend health check failed:", data);
+          setWsError(
+            "Backend service is not available. Please try again later."
+          );
+          setWsConnected(false);
+          setShowToast(true);
+        }
+      } catch (error) {
+        console.error("Failed to check backend health:", error);
+        setWsError("Backend service is not available. Please try again later.");
+        setWsConnected(false);
+        setShowToast(true);
+      }
+    };
+
+    checkBackendHealth();
+  }, []);
+
+  // WebSocket initialization function
+  const initializeWebSocket = () => {
     try {
       wsRef.current = new WebSocket(`${WS_SERVER_URL}/generate/ws/chat`);
 
       wsRef.current.onopen = () => {
         console.log(`✅ WebSocket connected to ${WS_SERVER_URL}`);
-        setWsError(null); // Clear any existing errors when connected successfully
+        setWsError(null);
+        setWsConnected(true);
+        setTimeout(() => setShowToast(false), 3000);
       };
 
       wsRef.current.onmessage = (event) => {
@@ -210,11 +254,11 @@ export default function SandboxPage() {
             {
               role: "assistant",
               message:
-                "From now on, you can edit the game to create a new game. You can reload the page to start fresh.",
+                "From now on, you can edit the existing game. You can reload the page to start fresh and create a new game.",
               state: "ai_assistance_message",
               isStreaming: false,
               streamedContent:
-                "From now on, you can edit the game to create a new game. You can reload the page to start fresh.",
+                "From now on, you can edit the existing game. You can reload the page to start fresh and create a new game.",
               is_not_related_to_game: isNotRelatedToGame,
             },
           ]);
@@ -290,21 +334,23 @@ export default function SandboxPage() {
       wsRef.current.onclose = () => {
         console.log("WebSocket disconnected");
         setWsError("Servers are busy. Please reload or try again later.");
+        setWsConnected(false);
+        setShowToast(true);
       };
 
       wsRef.current.onerror = (err) => {
         console.error("WebSocket error:", err);
         setWsError("Servers are busy. Please reload or try again later.");
+        setWsConnected(false);
+        setShowToast(true);
       };
     } catch (error) {
       console.error("Failed to initialize WebSocket:", error);
       setWsError("Servers are busy. Please reload or try again later.");
+      setWsConnected(false);
+      setShowToast(true);
     }
-
-    return () => {
-      wsRef.current?.close();
-    };
-  }, []);
+  };
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -865,9 +911,11 @@ export default function SandboxPage() {
     <div className="flex h-screen w-full bg-[hsl(60deg_2.7%_14.51%)] text-white">
       {showFTUE && <FTUEPopup onClose={handleFTUEClose} />}
       <Toast
-        message={wsError || ""}
-        isVisible={!!wsError}
-        onClose={clearWsError}
+        message={
+          wsConnected ? "Connected to server" : wsError || "Connecting..."
+        }
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
       />
       {/* File Tree Sidebar */}
       <div className="w-64 flex-shrink-0 border-r border-gray-700 bg-[hsl(60deg_2.7%_12%)] p-4 overflow-y-auto">
