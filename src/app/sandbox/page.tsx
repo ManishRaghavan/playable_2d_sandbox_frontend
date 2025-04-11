@@ -14,7 +14,7 @@ const WS_SERVER_URL =
 // Backend health check URL
 const BACKEND_HEALTH_URL =
   process.env.NODE_ENV === "development"
-    ? "http://127.0.0.1:8000/generate/chat/health"
+    ? "http://127.0.0.1:8000/generate/health"
     : "https://playabale-2d-game-sandbox-backend.onrender.com/";
 
 // Generate a unique user ID
@@ -445,7 +445,7 @@ export default function SandboxPage() {
     if (!inputMessage.trim() || !isClientSide) return;
 
     // Check message limit
-    if (userSession && userSession.messageCount >= 3) {
+    if (userSession && userSession.messageCount >= 6) {
       setWsError(
         "You've reached your daily message limit. Please try again tomorrow."
       );
@@ -541,7 +541,7 @@ export default function SandboxPage() {
   const renderMessageLimit = () => {
     if (!userSession) return null;
 
-    const remainingMessages = 3 - userSession.messageCount;
+    const remainingMessages = 6 - userSession.messageCount;
     return (
       <div className="text-sm text-gray-400 mt-2">
         {remainingMessages > 0
@@ -775,6 +775,7 @@ export default function SandboxPage() {
 
     // Set fixing state
     setIsFixingErrors(true);
+    setIsEditing(true);
 
     // Send to edit WebSocket
     if (!editWsRef.current || editWsRef.current.readyState !== WebSocket.OPEN) {
@@ -789,6 +790,7 @@ export default function SandboxPage() {
         console.log("Sending fix errors request:", message);
         editWsRef.current?.send(JSON.stringify(message));
         setIsFixingErrors(false);
+        setIsEditing(false);
       }, 1000);
       return;
     }
@@ -825,6 +827,7 @@ export default function SandboxPage() {
     // Reset fixing state after a delay
     setTimeout(() => {
       setIsFixingErrors(false);
+      setIsEditing(false);
     }, 1000);
   };
 
@@ -855,9 +858,8 @@ export default function SandboxPage() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        // Reconnect WebSocket when tab becomes visible
         if (wsRef.current?.readyState === WebSocket.CLOSED) {
-          initEditWebSocket();
+          initializeWebSocket();
         }
       }
     };
@@ -873,9 +875,7 @@ export default function SandboxPage() {
       wsRef.current.close();
     }
 
-    const newWs = new WebSocket(
-      process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/ws/edit"
-    );
+    const newWs = new WebSocket(`${WS_SERVER_URL}/generate/ws/chat/edit`);
     wsRef.current = newWs;
 
     newWs.onopen = () => {
@@ -1006,12 +1006,12 @@ export default function SandboxPage() {
                     disabled={
                       isFixingErrors ||
                       !isClientSide ||
-                      (userSession?.messageCount ?? 0) >= 3
+                      (userSession?.messageCount ?? 0) >= 6
                     }
                     className={`flex items-center space-x-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                       isFixingErrors ||
                       !isClientSide ||
-                      (userSession?.messageCount ?? 0) >= 3
+                      (userSession?.messageCount ?? 0) >= 6
                         ? "bg-gray-600 cursor-not-allowed"
                         : "bg-red-500 hover:bg-red-600"
                     }`}
@@ -1295,16 +1295,16 @@ export default function SandboxPage() {
                   placeholder={
                     isGenerating
                       ? "Generating..."
-                      : (userSession?.messageCount ?? 0) >= 3
+                      : (userSession?.messageCount ?? 0) >= 6
                       ? "Daily message limit reached"
                       : "Type your message..."
                   }
                   rows={1}
                   disabled={
-                    isGenerating || (userSession?.messageCount ?? 0) >= 3
+                    isGenerating || (userSession?.messageCount ?? 0) >= 6
                   }
                   className={`w-full h-full min-h-[40px] max-h-[200px] rounded-lg bg-transparent px-4 py-2 text-sm focus:outline-none resize-none overflow-y-auto ${
-                    isGenerating || (userSession?.messageCount ?? 0) >= 3
+                    isGenerating || (userSession?.messageCount ?? 0) >= 6
                       ? "cursor-not-allowed opacity-50"
                       : ""
                   }`}
@@ -1342,13 +1342,13 @@ export default function SandboxPage() {
                   isEditing ||
                   isGenerating ||
                   !isClientSide ||
-                  (userSession?.messageCount ?? 0) >= 3
+                  (userSession?.messageCount ?? 0) >= 6
                 }
                 className={`rounded-lg px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 self-end ${
                   isEditing ||
                   isGenerating ||
                   !isClientSide ||
-                  (userSession?.messageCount ?? 0) >= 3
+                  (userSession?.messageCount ?? 0) >= 6
                     ? "bg-gray-600 cursor-not-allowed"
                     : "bg-blue-500 hover:bg-blue-600"
                 }`}
@@ -1393,7 +1393,7 @@ export default function SandboxPage() {
                     </svg>
                     <span>Generating...</span>
                   </div>
-                ) : (userSession?.messageCount ?? 0) >= 3 ? (
+                ) : (userSession?.messageCount ?? 0) >= 6 && !isEditing ? (
                   "Limit Reached"
                 ) : (
                   "Send"
